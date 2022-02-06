@@ -30,6 +30,7 @@ Maintainer: Michael Coracin
 #include <termios.h>    /* tcflush */
 #include <math.h>       /* modf */
 #include <linux/i2c-dev.h>
+#include <sys/ioctl.h>
 
 #include <stdlib.h>
 
@@ -249,9 +250,8 @@ int str_chop(char *s, int buff_size, char separator, int *idx_ary, int max_idx) 
     return j;
 }
 
-static int lgw_gps_enable_i2c(char *tty_path, char *gps_family, speed_t target_brate, int *fd_ptr) {
-    int i;
-    struct termios ttyopt; /* serial port options */
+static int lgw_gps_enable_i2c(char *tty_path, int *fd_ptr) {
+
     int gps_tty_dev; /* file descriptor to the serial port of the GNSS module */
     uint8_t ubx_cmd_timegps[UBX_MSG_NAVTIMEGPS_LEN] = {
                     0xB5, 0x62, /* UBX Sync Chars */
@@ -415,7 +415,7 @@ int lgw_gps_enable(char *tty_path, char *gps_family, speed_t target_brate, int *
     if (strcmp("/dev/i2c-1", tty_path) == 0)
 	{
 		printf("This is i2c for GPS.\n");
-		return lgw_gps_enable_i2c(tty_path, gps_family, target_brate, fd_ptr);
+		return lgw_gps_enable_i2c(tty_path, fd_ptr);
 	}
 	else
 	{

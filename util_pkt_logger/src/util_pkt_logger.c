@@ -26,7 +26,7 @@ Maintainer: Sylvain Miermont
 
 #include <stdint.h>     /* C99 types */
 #include <stdbool.h>    /* bool type */
-#include <stdio.h>      /* printf fprintf sprintf fopen fputs */
+#include <stdio.h>      /* printf fprintf snprintf fopen fputs */
 
 #include <string.h>     /* memset */
 #include <signal.h>     /* sigaction */
@@ -99,6 +99,9 @@ int parse_SX1301_configuration(const char * conf_file) {
     JSON_Value *val;
     uint32_t sf, bw;
 
+    /* clean param_name */
+    memset(param_name, 0, sizeof(param_name));
+
     /* try to parse JSON */
     root_val = json_parse_file_with_comments(conf_file);
     root = json_value_get_object(root_val);
@@ -140,14 +143,14 @@ int parse_SX1301_configuration(const char * conf_file) {
     /* set configuration for RF chains */
     for (i = 0; i < LGW_RF_CHAIN_NB; ++i) {
         memset(&rfconf, 0, sizeof(rfconf)); /* initialize configuration structure */
-        sprintf(param_name, "radio_%i", i); /* compose parameter path inside JSON structure */
+        snprintf(param_name, sizeof(param_name)-1, "radio_%i", i); /* compose parameter path inside JSON structure */
         val = json_object_get_value(conf, param_name); /* fetch value (if possible) */
         if (json_value_get_type(val) != JSONObject) {
             MSG("INFO: no configuration for radio %i\n", i);
             continue;
         }
         /* there is an object to configure that radio, let's parse it */
-        sprintf(param_name, "radio_%i.enable", i);
+        snprintf(param_name, sizeof(param_name)-1, "radio_%i.enable", i);
         val = json_object_dotget_value(conf, param_name);
         if (json_value_get_type(val) == JSONBoolean) {
             rfconf.enable = (bool)json_value_get_boolean(val);
@@ -157,11 +160,11 @@ int parse_SX1301_configuration(const char * conf_file) {
         if (rfconf.enable == false) { /* radio disabled, nothing else to parse */
             MSG("INFO: radio %i disabled\n", i);
         } else  { /* radio enabled, will parse the other parameters */
-            snprintf(param_name, sizeof param_name, "radio_%i.freq", i);
+            snprintf(param_name, sizeof(param_name)-1, "radio_%i.freq", i);
             rfconf.freq_hz = (uint32_t)json_object_dotget_number(conf, param_name);
-            snprintf(param_name, sizeof param_name, "radio_%i.rssi_offset", i);
+            snprintf(param_name, sizeof(param_name)-1, "radio_%i.rssi_offset", i);
             rfconf.rssi_offset = (float)json_object_dotget_number(conf, param_name);
-            snprintf(param_name, sizeof param_name, "radio_%i.type", i);
+            snprintf(param_name, sizeof(param_name)-1, "radio_%i.type", i);
             str = json_object_dotget_string(conf, param_name);
             if (!strncmp(str, "SX1255", 6)) {
                 rfconf.type = LGW_RADIO_TYPE_SX1255;
@@ -194,14 +197,14 @@ int parse_SX1301_configuration(const char * conf_file) {
     /* set configuration for LoRa multi-SF channels (bandwidth cannot be set) */
     for (i = 0; i < LGW_MULTI_NB; ++i) {
         memset(&ifconf, 0, sizeof(ifconf)); /* initialize configuration structure */
-        sprintf(param_name, "chan_multiSF_%i", i); /* compose parameter path inside JSON structure */
+        snprintf(param_name, sizeof(param_name)-1, "chan_multiSF_%i", i); /* compose parameter path inside JSON structure */
         val = json_object_get_value(conf, param_name); /* fetch value (if possible) */
         if (json_value_get_type(val) != JSONObject) {
             MSG("INFO: no configuration for LoRa multi-SF channel %i\n", i);
             continue;
         }
         /* there is an object to configure that LoRa multi-SF channel, let's parse it */
-        sprintf(param_name, "chan_multiSF_%i.enable", i);
+        snprintf(param_name, sizeof(param_name)-1, "chan_multiSF_%i.enable", i);
         val = json_object_dotget_value(conf, param_name);
         if (json_value_get_type(val) == JSONBoolean) {
             ifconf.enable = (bool)json_value_get_boolean(val);
@@ -211,9 +214,9 @@ int parse_SX1301_configuration(const char * conf_file) {
         if (ifconf.enable == false) { /* LoRa multi-SF channel disabled, nothing else to parse */
             MSG("INFO: LoRa multi-SF channel %i disabled\n", i);
         } else  { /* LoRa multi-SF channel enabled, will parse the other parameters */
-            sprintf(param_name, "chan_multiSF_%i.radio", i);
+            snprintf(param_name, sizeof(param_name)-1, "chan_multiSF_%i.radio", i);
             ifconf.rf_chain = (uint32_t)json_object_dotget_number(conf, param_name);
-            sprintf(param_name, "chan_multiSF_%i.if", i);
+            snprintf(param_name, sizeof(param_name)-1, "chan_multiSF_%i.if", i);
             ifconf.freq_hz = (int32_t)json_object_dotget_number(conf, param_name);
             // TODO: handle individual SF enabling and disabling (spread_factor)
             MSG("INFO: LoRa multi-SF channel %i enabled, radio %i selected, IF %i Hz, 125 kHz bandwidth, SF 7 to 12\n", i, ifconf.rf_chain, ifconf.freq_hz);
@@ -347,7 +350,8 @@ void open_log(void) {
     strftime(iso_date,ARRAY_SIZE(iso_date),"%Y%m%dT%H%M%SZ",gmtime(&now_time)); /* format yyyymmddThhmmssZ */
     log_start_time = now_time; /* keep track of when the log was started, for log rotation */
 
-    sprintf(log_file_name, "pktlog_%s_%s.csv", lgwm_str, iso_date);
+    memset(log_file_name, 0, sizeof(log_file_name));
+    snprintf(log_file_name, sizeof(log_file_name)-1, "pktlog_%s_%s.csv", lgwm_str, iso_date);
     log_file = fopen(log_file_name, "a"); /* create log file, append if file already exist */
     if (log_file == NULL) {
         MSG("ERROR: impossible to create log file %s\n", log_file_name);
@@ -467,7 +471,8 @@ int main(int argc, char **argv)
     }
 
     /* transform the MAC address into a string */
-    sprintf(lgwm_str, "%08X%08X", (uint32_t)(lgwm >> 32), (uint32_t)(lgwm & 0xFFFFFFFF));
+    memset(lgwm_str, 0, sizeof(lgwm_str));
+    snprintf(lgwm_str, sizeof(lgwm_str)-1, "%08X%08X", (uint32_t)(lgwm >> 32), (uint32_t)(lgwm & 0xFFFFFFFF));
 
     /* opening log file and writing CSV header*/
     time(&now_time);
@@ -486,7 +491,8 @@ int main(int argc, char **argv)
             /* local timestamp generation until we get accurate GPS time */
             clock_gettime(CLOCK_REALTIME, &fetch_time);
             x = gmtime(&(fetch_time.tv_sec));
-            sprintf(fetch_timestamp,"%04i-%02i-%02i %02i:%02i:%02i.%03liZ",(x->tm_year)+1900,(x->tm_mon)+1,x->tm_mday,x->tm_hour,x->tm_min,x->tm_sec,(fetch_time.tv_nsec)/1000000); /* ISO 8601 format */
+            memset(fetch_timestamp, 0, sizeof(fetch_timestamp));
+            snprintf(fetch_timestamp, sizeof(fetch_timestamp)-1,"%04i-%02i-%02i %02i:%02i:%02i.%03liZ",(x->tm_year)+1900,(x->tm_mon)+1,x->tm_mday,x->tm_hour,x->tm_min,x->tm_sec,(fetch_time.tv_nsec)/1000000); /* ISO 8601 format */
         }
 
         /* log packets */
