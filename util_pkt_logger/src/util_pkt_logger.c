@@ -88,7 +88,7 @@ static void sig_handler(int sigio) {
 int parse_SX1301_configuration(const char * conf_file) {
     int i;
     const char conf_obj[] = "SX1301_conf";
-    char param_name[32]; /* used to generate variable parameter names */
+    char param_name[33]; /* used to generate variable parameter names */
     const char *str; /* used to store string value from JSON object */
     struct lgw_conf_board_s boardconf;
     struct lgw_conf_rxrf_s rfconf;
@@ -350,8 +350,8 @@ void open_log(void) {
     strftime(iso_date,ARRAY_SIZE(iso_date),"%Y%m%dT%H%M%SZ",gmtime(&now_time)); /* format yyyymmddThhmmssZ */
     log_start_time = now_time; /* keep track of when the log was started, for log rotation */
 
-    memset(log_file_name, 0, sizeof(log_file_name));
-    snprintf(log_file_name, sizeof(log_file_name)-1, "pktlog_%s_%s.csv", lgwm_str, iso_date);
+    snprintf(log_file_name, sizeof(log_file_name), "pktlog_%s_%s.csv", lgwm_str, iso_date);
+    log_file_name[sizeof(log_file_name)-1] = '\0';
     log_file = fopen(log_file_name, "a"); /* create log file, append if file already exist */
     if (log_file == NULL) {
         MSG("ERROR: impossible to create log file %s\n", log_file_name);
@@ -471,8 +471,8 @@ int main(int argc, char **argv)
     }
 
     /* transform the MAC address into a string */
-    memset(lgwm_str, 0, sizeof(lgwm_str));
-    snprintf(lgwm_str, sizeof(lgwm_str)-1, "%08X%08X", (uint32_t)(lgwm >> 32), (uint32_t)(lgwm & 0xFFFFFFFF));
+    snprintf(lgwm_str, sizeof(lgwm_str), "%08X%08X", (uint32_t)(lgwm >> 32), (uint32_t)(lgwm & 0xFFFFFFFF));
+    lgwm_str[sizeof(lgwm_str)-1] = '\0';
 
     /* opening log file and writing CSV header*/
     time(&now_time);
@@ -491,8 +491,8 @@ int main(int argc, char **argv)
             /* local timestamp generation until we get accurate GPS time */
             clock_gettime(CLOCK_REALTIME, &fetch_time);
             x = gmtime(&(fetch_time.tv_sec));
-            memset(fetch_timestamp, 0, sizeof(fetch_timestamp));
-            snprintf(fetch_timestamp, sizeof(fetch_timestamp)-1,"%04i-%02i-%02i %02i:%02i:%02i.%03liZ",(x->tm_year)+1900,(x->tm_mon)+1,x->tm_mday,x->tm_hour,x->tm_min,x->tm_sec,(fetch_time.tv_nsec)/1000000); /* ISO 8601 format */
+            snprintf(fetch_timestamp, sizeof(fetch_timestamp),"%04i-%02i-%02i %02i:%02i:%02i.%03liZ",(x->tm_year)+1900,(x->tm_mon)+1,x->tm_mday,x->tm_hour,x->tm_min,x->tm_sec,(fetch_time.tv_nsec)/1000000); /* ISO 8601 format */
+            fetch_timestamp[sizeof(fetch_timestamp)-1] = '\0';
         }
 
         /* log packets */
