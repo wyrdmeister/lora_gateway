@@ -21,7 +21,7 @@ LIBS := -lloragw -lrt -lm
 
 ### general build targets
 
-all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_gps test_loragw_cal
+all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_gps test_loragw_gps_i2c test_loragw_cal
 
 clean:
 	rm -f libloragw.a
@@ -83,6 +83,9 @@ test_loragw_hal: tst/test_loragw_hal.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_gps: tst/test_loragw_gps.c libloragw.a
+	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
+
+test_loragw_gps_i2c: tst/test_loragw_gps_i2c.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_cal: tst/test_loragw_cal.c libloragw.a src/cal_fw.var

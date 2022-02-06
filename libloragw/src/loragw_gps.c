@@ -29,6 +29,7 @@ Maintainer: Michael Coracin
 #include <fcntl.h>      /* open */
 #include <termios.h>    /* tcflush */
 #include <math.h>       /* modf */
+#include <linux/i2c-dev.h>
 
 #include <stdlib.h>
 
@@ -248,10 +249,51 @@ int str_chop(char *s, int buff_size, char separator, int *idx_ary, int max_idx) 
     return j;
 }
 
-/* -------------------------------------------------------------------------- */
-/* --- PUBLIC FUNCTIONS DEFINITION ------------------------------------------ */
+static int lgw_gps_enable_i2c(char *tty_path, char *gps_family, speed_t target_brate, int *fd_ptr) {
+    int i;
+    struct termios ttyopt; /* serial port options */
+    int gps_tty_dev; /* file descriptor to the serial port of the GNSS module */
+    uint8_t ubx_cmd_timegps[UBX_MSG_NAVTIMEGPS_LEN] = {
+                    0xB5, 0x62, /* UBX Sync Chars */
+                    0x06, 0x01, /* CFG-MSG Class/ID */
+                    0x08, 0x00, /* Payload length */
+                    0x01, 0x20, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, /* Enable NAV-TIMEGPS output on serial */
+                    0x31, 0x91 }; /* Checksum */
+    ssize_t num_written;
 
-int lgw_gps_enable(char *tty_path, char *gps_family, speed_t target_brate, int *fd_ptr) {
+    /* check input parameters */
+    CHECK_NULL(tty_path);
+    CHECK_NULL(fd_ptr);
+
+    /* open TTY device */
+    gps_tty_dev = open(tty_path, O_RDWR | O_NOCTTY);
+    if (gps_tty_dev <= 0) {
+        DEBUG_MSG("ERROR: TTY PORT FAIL TO OPEN, CHECK PATH AND ACCESS RIGHTS\n");
+        return LGW_GPS_ERROR;
+    }
+    *fd_ptr = gps_tty_dev;
+    if(ioctl(gps_tty_dev, I2C_SLAVE, 0x42) < 0)
+    {
+    	DEBUG_MSG("ERROR: I2C FAIL TO SET ADDR\n");
+    	return LGW_GPS_ERROR;
+    }
+
+    num_written = write (gps_tty_dev, ubx_cmd_timegps, UBX_MSG_NAVTIMEGPS_LEN);
+    if (num_written != UBX_MSG_NAVTIMEGPS_LEN) {
+        DEBUG_MSG("ERROR: Failed to write on serial port (written=%d)\n", (int) num_written);
+    }
+    /* get timezone info */
+    tzset();
+
+    /* initialize global variables */
+    gps_time_ok = false;
+    gps_pos_ok = false;
+    gps_mod = 'N';
+
+    return LGW_GPS_SUCCESS;
+}
+
+static int lgw_gps_enable_uart(char *tty_path, char *gps_family, speed_t target_brate, int *fd_ptr) {
     int i;
     struct termios ttyopt; /* serial port options */
     int gps_tty_dev; /* file descriptor to the serial port of the GNSS module */
@@ -364,6 +406,22 @@ int lgw_gps_enable(char *tty_path, char *gps_family, speed_t target_brate, int *
     gps_mod = 'N';
 
     return LGW_GPS_SUCCESS;
+}
+
+/* -------------------------------------------------------------------------- */
+/* --- PUBLIC FUNCTIONS DEFINITION ------------------------------------------ */
+
+int lgw_gps_enable(char *tty_path, char *gps_family, speed_t target_brate, int *fd_ptr) {
+    if (strcmp("/dev/i2c-1", tty_path) == 0)
+	{
+		printf("This is i2c for GPS.\n");
+		return lgw_gps_enable_i2c(tty_path, gps_family, target_brate, fd_ptr);
+	}
+	else
+	{
+		printf("This is uart for GPS.\n");
+		return lgw_gps_enable_uart(tty_path, gps_family, target_brate, fd_ptr);
+	}
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
